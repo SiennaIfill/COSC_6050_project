@@ -4,31 +4,38 @@ output: html_notebook
 ---
 
 This is an [R Markdown](http://rmarkdown.rstudio.com) Notebook. When you execute code within the notebook, the results appear beneath the code. 
+```{r setup, include=FALSE}
+knitr::opts_knit$set(root.dir = "~/Documents/COSC 6050")
+library(lubridate)
+library(datavolley)
+library(tidyverse)
+```
 
 Try executing this chunk by clicking the *Run* button within the chunk or by placing your cursor inside it and pressing *Cmd+Shift+Enter*. 
 
 ```{r}
-library(lubridate)
-library(datavolley)
-library(tidyverse)
-
-# Set working directory
-# setwd(setwd("~/Documents/COSC 6510/final project/loading zone"))
+# Set working directory to retrieve files
 setwd("~/Documents/COSC 6050/dvw files for final project")
 
 # Establish team to scout
 scout_team <- "marquette"
 # List all .dvw files
 # Save all their home games
-home_pattern <- paste("at_",scout_team,"\\.dvw$",sep="")
-home_pattern
+home_pattern <- paste("at_",scout_team,sep="")
 home_files <- list.files(pattern = home_pattern)
+home_files
+away_pattern <- paste(scout_team,"_at",sep = "")
+away_files <- list.files(pattern= away_pattern)
+away_files
 #files <- list.files(pattern = "\\.dvw$")
 
-# Read the first file and initialize the dataset
+# Read the first files and initialize each dataset
 x <- read_dv(home_files[1], insert_technical_timeouts = FALSE)
 home_game <- x$plays # Extract plays
 home_game$date <- as_date(x$meta$match$date) # Add game date
+y <- read_dv(away_files[1], insert_technical_timeouts = FALSE)
+away_game <- y$plays # Extract plays
+away_game$date <- as_date(y$meta$match$date) # Add game date
 
 # Loop through remaining files and combine their plays into `home_game`
 for (i in 2:length(home_files)) {
@@ -37,25 +44,46 @@ for (i in 2:length(home_files)) {
   hold$date <- as_date(temp$meta$match$date)
   home_game <- rbind(home_game, hold)
 }
+# Loop through remaining files and combine their plays into `away_game`
+for (i in 2:length(away_files)) {
+  temp <- read_dv(away_files[i], insert_technical_timeouts = FALSE)
+  hold <- temp$plays
+  hold$date <- as_date(temp$meta$match$date)
+  away_game <- rbind(away_game, hold)
+}
 
-# Construct a valid datavolley object
+# Begin to construct valid datavolley objects
 home_game_dvw <- read_dv(home_files[1], insert_technical_timeouts = FALSE) # Reload the first file as a template
-home_game_dvw$plays <- home_game # Replace plays with the combined data
-home_game_dvw$meta$match$date <- Sys.Date() # Update metadata date
-home_game_dvw$meta$match$id <- paste(scout_team,"_Home_Games_Combined", sep="") # Assign an ID
-home_game_dvw$meta$match$description <- "Combined home game data" # Optional description
-
-# Write the combined data to a .dvw file
-output_file <- paste(scout_team,"_Home_Games_Combined", sep="")
-dv_write(home_game_dvw, file = output_file)
-
-message("Practice data table has been exported as a .dvw file: ", output_file)
+away_game_dvw <- read_dv(away_files[1], insert_technical_timeouts = FALSE) # Reload the first file as a template
 
 ```
 
 Add a new chunk by clicking the *Insert Chunk* button on the toolbar or by pressing *Cmd+Option+I*.
+```{r}
+# Construct a valid datavolley object
+#home_game_dvw <- read_dv(home_files[1], insert_technical_timeouts = FALSE) # Reload the first file as a template
+home_game_dvw$plays <- home_game # Replace plays with the combined data
+home_game_dvw$meta$match$date <- Sys.Date() # Update metadata date
+home_game_dvw$meta$match$id <- paste(scout_team,"_Home_Games_Combined", sep="") # Assign an ID
+home_game_dvw$meta$match$description <- "Combined home game data" # Optional description
+# Construct another valid datavolley object
+#away_game_dvw <- read_dv(away_files[1], insert_technical_timeouts = FALSE) # Reload the first file as a template
+away_game_dvw$plays <- away_game # Replace plays with the combined data
+away_game_dvw$meta$match$date <- Sys.Date() # Update metadata date
+away_game_dvw$meta$match$id <- paste(scout_team,"_Away_Games_Combined", sep="") # Assign an ID
+away_game_dvw$meta$match$description <- "Combined away game data" # Optional description
+```
 
 When you save the notebook, an HTML file containing the code and output will be saved alongside it (click the *Preview* button or press *Cmd+Shift+K* to preview the HTML file). 
-
+ˆ
 The preview shows you a rendered HTML copy of the contents of the editor. Consequently, unlike *Knit*, *Preview* does not run any R code chunks. Instead, the output of the chunk when it was last run in the editor is displayed.
+```{r}
+# Write the combined data to .dvw files
+output_file1 <- paste(scout_team,"_Home_Games_Combined.dvw",sep = "")
+dv_write(home_game_dvw, file = output_file1)
+message("Home game data table has been exported as a .dvw file: ", output_file1)
 
+output_file2 <- paste(scout_team,"_Away_Games_Combined.dvw",sep="")
+dv_write(away_game_dvw, file = output_file2)
+message("Away game data table has been exported as a .dvw file: ", output_file2)
+```
