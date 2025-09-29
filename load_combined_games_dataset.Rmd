@@ -1,11 +1,11 @@
 ---
-title: "R Notebook"
+title: "Load games and create combined .dvw files, separated into Home and Away"
 output: html_notebook
 ---
 
 This is an [R Markdown](http://rmarkdown.rstudio.com) Notebook. When you execute code within the notebook, the results appear beneath the code. 
 ```{r setup, include=FALSE}
-knitr::opts_knit$set(root.dir = "~/Documents/COSC 6050")
+knitr::opts_knit$set(root.dir = "~/COSC_6050_project")
 library(lubridate)
 library(datavolley)
 library(tidyverse)
@@ -15,7 +15,7 @@ Try executing this chunk by clicking the *Run* button within the chunk or by pla
 
 ```{r}
 # Set working directory to retrieve files
-setwd("~/Documents/COSC 6050/dvw files for final project")
+setwd("~/COSC_6050_project/dvw files for final project")
 
 # Establish team to scout
 scout_team <- "marquette"
@@ -61,13 +61,11 @@ away_game_dvw <- read_dv(away_files[1], insert_technical_timeouts = FALSE) # Rel
 Add a new chunk by clicking the *Insert Chunk* button on the toolbar or by pressing *Cmd+Option+I*.
 ```{r}
 # Construct a valid datavolley object
-#home_game_dvw <- read_dv(home_files[1], insert_technical_timeouts = FALSE) # Reload the first file as a template
 home_game_dvw$plays <- home_game # Replace plays with the combined data
 home_game_dvw$meta$match$date <- Sys.Date() # Update metadata date
 home_game_dvw$meta$match$id <- paste(scout_team,"_Home_Games_Combined", sep="") # Assign an ID
 home_game_dvw$meta$match$description <- "Combined home game data" # Optional description
-# Construct another valid datavolley object
-#away_game_dvw <- read_dv(away_files[1], insert_technical_timeouts = FALSE) # Reload the first file as a template
+# Construct another valid datavolley objectclas
 away_game_dvw$plays <- away_game # Replace plays with the combined data
 away_game_dvw$meta$match$date <- Sys.Date() # Update metadata date
 away_game_dvw$meta$match$id <- paste(scout_team,"_Away_Games_Combined", sep="") # Assign an ID

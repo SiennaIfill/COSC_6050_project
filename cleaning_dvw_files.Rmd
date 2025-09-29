@@ -1,0 +1,154 @@
+---
+title: "Take Home and Away .dvw files and create one .csv file with appropriate info"
+output: html_notebook
+---
+Ensure Proper Data
+```{r}
+scout_team <- "marquette"
+home_pattern <- paste(scout_team,"_Home_Games_Combined",sep="")
+home_file <- list.files(pattern = home_pattern)
+away_pattern <- paste(scout_team,"_Away_Games_Combined",sep="")
+away_file <- list.files(pattern = away_pattern)
+home_file
+away_file
+```
+
+Clean Data
+```{r, echo=FALSE, message=FALSE, warning=FALSE}
+practice <- practice %>%
+  rename(Name=player_name,
+         AttackPlay=attack_description) %>%
+   mutate(Set_Success = case_when(
+    skill == "Set" & lead(skill) == "Attack" & lead(evaluation) == "Winning attack" ~ "Win",
+    skill == "Set" & lead(skill) == "Attack" & (lead(evaluation) == "Blocked" | lead(evaluation) == "Error") ~ "Loss",
+    TRUE ~ "InPlay"  
+  )) %>%
+  mutate(
+        HomeRO = case_when(
+          home_setter_position == 2 ~ 6,
+          home_setter_position == 3 ~ 5,
+          home_setter_position == 5 ~ 3,
+          home_setter_position == 6 ~ 2,
+          TRUE ~ home_setter_position),
+        VisitRO = case_when(
+          visiting_setter_position == 2 ~ 6,
+          visiting_setter_position == 3 ~ 5,
+          visiting_setter_position == 5 ~ 3,
+          visiting_setter_position == 6 ~ 2,
+          TRUE ~ visiting_setter_position)) %>%
+  mutate(
+    Phase = case_when(
+      phase == 'Reception' ~ 'FBSO',
+      phase == 'Transition' ~ 'Trans',
+      TRUE ~ as.character(phase)
+    )
+  )
+
+pr_attack <- practice %>%
+  subset(skill=="Attack") %>%
+  mutate(Area = case_when(
+    start_zone %in% c(2, 3, 4) ~ 'frontrow',
+    TRUE ~ 'backrow'
+  )) %>%
+  mutate(
+    Evaluation = case_when(
+      evaluation == 'Winning attack' ~ 'Kill',
+      evaluation == 'Positive, good attack' ~ 'Positive',
+      evaluation == 'Blocked for reattack' ~ 'Medium',
+      evaluation == 'Poor, easily dug' ~ 'Poor',
+      TRUE ~ as.character(evaluation)  # Keeps other values unchanged
+    )
+  ) %>%
+  mutate(
+    ShotPace = case_when(
+      skill_subtype == 'Hard spike' ~ 'Hard',
+      skill_subtype == 'Soft spike/topspin' ~ 'Roll',
+      skill_subtype == 'Tip' ~ 'Tip',
+      TRUE ~ as.character(skill_subtype)
+    )
+  ) 
+
+pr_set <- practice %>%
+  subset(skill=="Set") %>%
+  mutate(
+    Set_Location = case_when(
+      set_type == 'F' ~ 'Left',
+      set_type == 'B' ~ 'Right',
+      set_type == 'C' ~ 'Middle',
+      set_type == 'P' ~ 'Pipe',
+      set_type == 'S' ~ 'Dump',
+      TRUE ~ as.character(set_type) 
+    )
+  ) 
+
+pr_serve <- practice %>%
+  subset(skill=="Serve") %>%
+  mutate(
+    Evaluation = case_when(
+      evaluation == 'OK, no first tempo possible' ~ 'Medium',
+      evaluation == 'Positive, no attack' ~ 'Overpass',
+      evaluation == 'Positive, opponent some attack' ~ 'Good',
+      evaluation == 'Negative, opponent free attack' ~ 'Poor',
+      TRUE ~ as.character(evaluation)  
+    )
+  ) %>%
+  mutate(
+    ServeType = case_when(
+      skill_type == 'Jump serve' ~ 'Topspin',
+      skill_type == 'Jump-float serve' ~ 'Float',
+      TRUE ~ as.character(skill_type)
+    )
+  )
+
+pr_reception <- practice %>%
+  subset(skill=="Reception") %>%
+  mutate(PassingGrade = case_when(
+    evaluation == 'OK, no first tempo possible' ~ 'Medium',
+    evaluation == 'Poor, no attack' ~ 'Overpass',
+    evaluation == 'Negative, limited attack' ~ 'Poor',
+    evaluation == 'Positive, attack' ~ 'Positive',
+    TRUE ~ as.character(evaluation)
+  )) %>%
+  mutate(PassType = case_when(
+    skill_type == 'Jump serve reception' ~ 'Topspin',
+    skill_type == 'Jump-float serve reception' ~ 'Float',
+    TRUE ~ as.character(skill_type)
+  ))
+```
+
+## Overall Attack Overlook
+```{r}
+pr_attackOverall <- practice %>% 
+  # THIS NEEDS TO BE ADJUSTED WHEN LOOKING AT DIFFERENT TEAMS
+  filter(skill == "Attack"&team == "Marquette University") %>% 
+  group_by(Name) %>% 
+  summarise(kill = sum(evaluation_code == "#"), 
+            ue = sum(evaluation_code == "="), 
+            be = sum(evaluation_code == "/"),
+            att = n(),
+            killPercentage = round(kill/att,2)) %>% 
+  arrange(Name) %>% 
+  mutate(kill_cum = cumsum(kill), 
+         ue_cum = cumsum(ue), 
+         be_cum = cumsum(be),
+         att_cum = cumsum(att),
+         TotalkillPercentage = cumsum(kill)/cumsum(att),
+         eff = round((kill - ue - be)/att,3), 
+         eff_cum = round((kill_cum - ue_cum - be_cum)/ 
+                           att_cum,3))
+
+pr_attackOverall <- pr_attackOverall %>%
+  filter(! grepl("unknown player", Name)) %>%
+  select(Name, att, killPercentage, eff) %>%
+  arrange(-att)
+  
+
+pr_attackOverall
+```
+
+Add a new chunk by clicking the *Insert Chunk* button on the toolbar or by pressing *Cmd+Option+I*.
+
+When you save the notebook, an HTML file containing the code and output will be saved alongside it (click the *Preview* button or press *Cmd+Shift+K* to preview the HTML file). 
+
+The preview shows you a rendered HTML copy of the contents of the editor. Consequently, unlike *Knit*, *Preview* does not run any R code chunks. Instead, the output of the chunk when it was last run in the editor is displayed.
+
