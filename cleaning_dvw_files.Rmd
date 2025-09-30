@@ -4,6 +4,7 @@ output: html_notebook
 ---
 Ensure Proper Data
 ```{r}
+library(dplyr)
 scout_team <- "marquette"
 home_pattern <- paste(scout_team,"_Home_Games_Combined",sep="")
 home_file <- list.files(pattern = home_pattern)
@@ -15,14 +16,14 @@ away_file
 
 Clean Data
 ```{r, echo=FALSE, message=FALSE, warning=FALSE}
-practice <- practice %>%
+home_file <- home_file |>  
   rename(Name=player_name,
-         AttackPlay=attack_description) %>%
+         AttackPlay=attack_description)  |> 
    mutate(Set_Success = case_when(
     skill == "Set" & lead(skill) == "Attack" & lead(evaluation) == "Winning attack" ~ "Win",
     skill == "Set" & lead(skill) == "Attack" & (lead(evaluation) == "Blocked" | lead(evaluation) == "Error") ~ "Loss",
     TRUE ~ "InPlay"  
-  )) %>%
+  )) |>
   mutate(
         HomeRO = case_when(
           home_setter_position == 2 ~ 6,
@@ -35,7 +36,7 @@ practice <- practice %>%
           visiting_setter_position == 3 ~ 5,
           visiting_setter_position == 5 ~ 3,
           visiting_setter_position == 6 ~ 2,
-          TRUE ~ visiting_setter_position)) %>%
+          TRUE ~ visiting_setter_position)) |>
   mutate(
     Phase = case_when(
       phase == 'Reception' ~ 'FBSO',
@@ -44,12 +45,12 @@ practice <- practice %>%
     )
   )
 
-pr_attack <- practice %>%
-  subset(skill=="Attack") %>%
+pr_attack <- home_file  |> 
+  subset(skill=="Attack")  |> 
   mutate(Area = case_when(
     start_zone %in% c(2, 3, 4) ~ 'frontrow',
     TRUE ~ 'backrow'
-  )) %>%
+  ))  |> 
   mutate(
     Evaluation = case_when(
       evaluation == 'Winning attack' ~ 'Kill',
@@ -58,7 +59,7 @@ pr_attack <- practice %>%
       evaluation == 'Poor, easily dug' ~ 'Poor',
       TRUE ~ as.character(evaluation)  # Keeps other values unchanged
     )
-  ) %>%
+  )  |> 
   mutate(
     ShotPace = case_when(
       skill_subtype == 'Hard spike' ~ 'Hard',
@@ -68,8 +69,8 @@ pr_attack <- practice %>%
     )
   ) 
 
-pr_set <- practice %>%
-  subset(skill=="Set") %>%
+pr_set <- home_file  |> 
+  subset(skill=="Set")  |> 
   mutate(
     Set_Location = case_when(
       set_type == 'F' ~ 'Left',
@@ -81,8 +82,8 @@ pr_set <- practice %>%
     )
   ) 
 
-pr_serve <- practice %>%
-  subset(skill=="Serve") %>%
+pr_serve <- home_file  |> 
+  subset(skill=="Serve")  |> 
   mutate(
     Evaluation = case_when(
       evaluation == 'OK, no first tempo possible' ~ 'Medium',
@@ -91,7 +92,7 @@ pr_serve <- practice %>%
       evaluation == 'Negative, opponent free attack' ~ 'Poor',
       TRUE ~ as.character(evaluation)  
     )
-  ) %>%
+  )  |> 
   mutate(
     ServeType = case_when(
       skill_type == 'Jump serve' ~ 'Topspin',
@@ -100,15 +101,15 @@ pr_serve <- practice %>%
     )
   )
 
-pr_reception <- practice %>%
-  subset(skill=="Reception") %>%
+pr_reception <- home_file |>
+  subset(skill=="Reception") |>
   mutate(PassingGrade = case_when(
     evaluation == 'OK, no first tempo possible' ~ 'Medium',
     evaluation == 'Poor, no attack' ~ 'Overpass',
     evaluation == 'Negative, limited attack' ~ 'Poor',
     evaluation == 'Positive, attack' ~ 'Positive',
     TRUE ~ as.character(evaluation)
-  )) %>%
+  )) |>
   mutate(PassType = case_when(
     skill_type == 'Jump serve reception' ~ 'Topspin',
     skill_type == 'Jump-float serve reception' ~ 'Float',
@@ -118,16 +119,16 @@ pr_reception <- practice %>%
 
 ## Overall Attack Overlook
 ```{r}
-pr_attackOverall <- practice %>% 
+pr_attackOverall <- home_file |> 
   # THIS NEEDS TO BE ADJUSTED WHEN LOOKING AT DIFFERENT TEAMS
-  filter(skill == "Attack"&team == "Marquette University") %>% 
-  group_by(Name) %>% 
+  filter(skill == "Attack"&team == "Marquette University") |> 
+  group_by(Name) |> 
   summarise(kill = sum(evaluation_code == "#"), 
             ue = sum(evaluation_code == "="), 
             be = sum(evaluation_code == "/"),
             att = n(),
-            killPercentage = round(kill/att,2)) %>% 
-  arrange(Name) %>% 
+            killPercentage = round(kill/att,2)) |> 
+  arrange(Name) |> 
   mutate(kill_cum = cumsum(kill), 
          ue_cum = cumsum(ue), 
          be_cum = cumsum(be),
@@ -137,9 +138,9 @@ pr_attackOverall <- practice %>%
          eff_cum = round((kill_cum - ue_cum - be_cum)/ 
                            att_cum,3))
 
-pr_attackOverall <- pr_attackOverall %>%
-  filter(! grepl("unknown player", Name)) %>%
-  select(Name, att, killPercentage, eff) %>%
+pr_attackOverall <- pr_attackOverall |>
+  filter(! grepl("unknown player", Name)) |>
+  select(Name, att, killPercentage, eff) |>
   arrange(-att)
   
 
