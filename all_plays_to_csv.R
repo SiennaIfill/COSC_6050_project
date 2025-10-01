@@ -2,6 +2,7 @@
 library(lubridate)
 library(datavolley)
 library(tidyverse)
+library(plyr)
 
 # Set working directory to retrieve files
 setwd("~/COSC_6050_project/dvw files for final project")
@@ -16,7 +17,7 @@ home_files
 away_pattern <- paste(scout_team,"_at",sep = "")
 away_files <- list.files(pattern= away_pattern)
 away_files
-#files <- list.files(pattern = "\\.dvw$")
+
 
 # Read the first files and initialize each dataset
 x <- read_dv(home_files[1], insert_technical_timeouts = FALSE)
@@ -56,18 +57,13 @@ away_game_dvw$meta$match$date <- Sys.Date() # Update metadata date
 away_game_dvw$meta$match$id <- paste(scout_team,"_Away_Games_Combined", sep="") # Assign an ID
 away_game_dvw$meta$match$description <- "Combined away game data" # Optional description
 
-# Write the combined data to .dvw files
-output_file1 <- paste(scout_team,"_Home_Games_Combined.dvw",sep = "")
-dv_write(home_game_dvw, file = output_file1)
-message("Home game data table has been exported as a .dvw file: ", output_file1)
-
-output_file2 <- paste(scout_team,"_Away_Games_Combined.dvw",sep="")
-dv_write(away_game_dvw, file = output_file2)
-message("Away game data table has been exported as a .dvw file: ", output_file2)
 
 # clean data
 home_plays <- home_game_dvw$plays
-home_plays<- home_plays|>  
+away_plays <- away_game_dvw$plays
+all_plays <- rbind.fill(home_plays,away_plays)
+
+all_plays<- all_plays|>  
   rename(Name=player_name,
          AttackPlay=attack_description)  |> 
   mutate(Set_Success = case_when(
@@ -96,7 +92,7 @@ home_plays<- home_plays|>
     )
   )
 
-pr_attack <- home_plays |> 
+pr_attack <- all_plays |> 
   subset(skill=="Attack")  |> 
   mutate(Area = case_when(
     start_zone %in% c(2, 3, 4) ~ 'frontrow',
@@ -120,7 +116,7 @@ pr_attack <- home_plays |>
     )
   ) 
 
-pr_set <- home_plays |> 
+pr_set <- all_plays |> 
   subset(skill=="Set")  |> 
   mutate(
     Set_Location = case_when(
@@ -133,7 +129,7 @@ pr_set <- home_plays |>
     )
   ) 
 
-pr_serve <- home_plays |> 
+pr_serve <- all_plays |> 
   subset(skill=="Serve")  |> 
   mutate(
     Evaluation = case_when(
@@ -152,7 +148,7 @@ pr_serve <- home_plays |>
     )
   )
 
-pr_reception <- home_game_dvw|>
+pr_reception <- all_plays|>
   subset(skill=="Reception") |>
   mutate(PassingGrade = case_when(
     evaluation == 'OK, no first tempo possible' ~ 'Medium',
@@ -167,3 +163,5 @@ pr_reception <- home_game_dvw|>
     TRUE ~ as.character(skill_type)
   ))
 
+#write as csv in case that's helpful?
+write.csv(all_plays,"~/COSC_6050_project/marquette_plays.csv", row.names = FALSE)

@@ -8,10 +8,9 @@
 #
 
 library(shiny)
-available_players <- list(`East Coast` = list("NY", "NJ", "CT"),
-                          `West Coast` = list("WA", "OR", "CA"),
-                          `Midwest` = list("MN", "WI", "IA"))
-
+available_teams <- c("marquette","ball_state","florida","jmu","hawaii","san_diego","minnesota","utah_state","uwm","wisconsin","wku")
+data <- read.csv("marquette_plays.csv")
+players <- data |> filter(team == "Marquette University") |> distinct(Name)
 # Define UI for application that draws a histogram
 ui <- fluidPage(
 
@@ -19,7 +18,7 @@ ui <- fluidPage(
     titlePanel("Player Patterns"),
 
     # Dropdown attempt
-    selectInput("Team","Choose Team to Scout", choices = available_players),
+    selectInput("Team","Choose Team to Scout", choices = available_teams),
     
     # Sidebar with a slider input for number of bins 
     sidebarLayout(
