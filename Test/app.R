@@ -8,9 +8,14 @@
 #
 
 library(shiny)
-available_teams <- c("marquette","ball_state","florida","jmu","hawaii","san_diego","minnesota","utah_state","uwm","wisconsin","wku")
-data <- read.csv("marquette_plays.csv")
+#available_teams <- c("marquette","ball_state","florida","jmu","hawaii","san_diego","minnesota","utah_state","uwm","wisconsin","wku")
+data <- read_csv("~/COSC_6050_project/marquette_plays.csv")
+teams <- data |> distinct(team)
+teams <- na.omit(teams)
+available_teams <- teams |> pull(team)
 players <- data |> filter(team == "Marquette University") |> distinct(Name)
+players <- na.omit(players)
+available_players <- players |> pull(Name)
 # Define UI for application that draws a histogram
 ui <- fluidPage(
 
@@ -19,6 +24,9 @@ ui <- fluidPage(
 
     # Dropdown attempt
     selectInput("Team","Choose Team to Scout", choices = available_teams),
+    
+    # this will be redone later
+    selectInput("Player", "Choose Player to Scout", choices = available_players),
     
     # Sidebar with a slider input for number of bins 
     sidebarLayout(
