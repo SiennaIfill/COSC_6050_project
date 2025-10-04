@@ -18,7 +18,7 @@ scout_player_hits <- filter(hits, Name == "Natalie Ring")
 kill_num <- scout_player_hits |> filter(evaluation_code=="#") |> tally() |> pull(n)
 total_att <- scout_player_hits |> tally() |> pull(n)
 err_num <- scout_player_hits |> filter(evaluation_code=='=') |> tally() |> pull(n)
-Nat_kill_pct <- (kill_num-err_num)/total_att 
+scout_kill_pct <- (kill_num-err_num)/total_att 
 # further specification-- goal is top 4 shots
 top_4 <- scout_player_hits |> count(AttackPlay, skill_subtype, end_zone, sort = TRUE) |> slice(1:4)
 View(top_4)
