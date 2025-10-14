@@ -26,8 +26,8 @@ ui <- fluidPage(
     
     # Show a plot of the generated distribution
     mainPanel(
+      plotOutput("court", width = "65%", height = "400px"),
       textOutput("text"),
-      #plotOutput("distPlot"),
       tableOutput("table")
     )
     
@@ -133,6 +133,14 @@ server <- function(input, output, session) {
       }else{
         output$text <- renderText("Select player to view Shot Chart")
       }
+    })
+    
+    observeEvent(input$scout_player, {
+      x = c(1:20)
+      y= c(20,20,20,20,20,20,20,20,20,20,20,20,20,20,20,20,20,20,20,20)
+      output$court <- renderPlot({
+        plot(x,y,type = "l", xlim =c(2,19), ylim = c(0,29), xlab = "", ylab="")}) #xaxt='n',yaxt='n'
+      
     })
 }
 # Run the application 

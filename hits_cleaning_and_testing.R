@@ -1,19 +1,19 @@
 library(readr)
 library(dplyr)
 # load data
-data <- read_csv("~/COSC_6050_project/marquette_plays.csv")
+data <- read_csv("~/COSC_6050_project/big_east_plays.csv")
 # choose team to select players from
-players <- data |> filter(team == "Marquette University") |> distinct(Name)
+players <- data |> filter(team == "Georgetown University") |> distinct(Name)
 players <- na.omit(players)
 p_list <- list(players['Name'])
 # choose players that hit
-scout_team_plays <- filter(data, team == "Marquette University")
+scout_team_plays <- filter(data, team == "Georgetown University")
 hits <- subset(scout_team_plays, select = c(Name, attack_code,AttackPlay, evaluation_code, start_zone, end_zone, skill_subtype)) 
 hits<- hits[complete.cases(hits), ]
 # subset to require a certain number of hits-- come back to this later
 hit_count <- hits |> count(Name)
 # get list of scout player's hits
-scout_player_hits <- filter(hits, Name == "Natalie Ring")
+scout_player_hits <- filter(hits, Name == "Dionna Mitchell")
 #get kill pct
 kill_num <- scout_player_hits |> filter(evaluation_code=="#") |> tally() |> pull(n)
 total_att <- scout_player_hits |> tally() |> pull(n)
