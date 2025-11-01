@@ -63,6 +63,8 @@ all_plays<- all_plays|>
     )
   )
 # Write/export as .csv file for use in app.R
+all_plays$team <- ifelse(all_plays$team == "Providence College (RI)", "Providence College", all_plays$team)
+
 write.csv(all_plays,"~/COSC_6050_project/big_east_plays.csv", row.names = FALSE)
 library(readr)
 big_east_plays <- read_csv("~/COSC_6050_project/big_east_plays.csv")
