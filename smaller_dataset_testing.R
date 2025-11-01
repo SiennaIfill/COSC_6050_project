@@ -20,8 +20,8 @@ team1_match_ids <- team1_matches[[1]]
 team2_matches <- matchup_ids |> filter(team == team2) 
 team2_match_ids <- team2_matches[[1]]
 
-combined_match_ids <- rbind(team1_match_ids,team2_match_ids)
-shared_match_ids <- combined_match_ids |> count(match_id) |> filter(n>1) #n = 2 if both teams present
+combined_match_ids <- as_tibble(c(team1_match_ids,team2_match_ids))
+shared_match_ids <- combined_match_ids |> count(value) |> filter(n>1) #n = 2 if both teams present
 shared_match_ids <- shared_match_ids[[1]]
 
 

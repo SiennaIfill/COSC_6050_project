@@ -30,8 +30,12 @@ ui <- fluidPage(
       selectizeInput("scout_player","Choose Player to Scout", choices=NULL),
       
       # Choose range of data available: all games, team matchups, or last three games
-      radioButtons("data_range","Choose Range of Data",choices = c("All of Scout Team's Games","Scout Team Vs. Home Team", "Scout Team's Last Three Games"),selected = "All of Scout Team's Games")
+      radioButtons("data_range","Choose Range of Data",
+                   choiceNames = c("All of Scout Team's Games","Scout Team Vs. Home Team", "Scout Team's Last Three Games"),
+                   choiceValues = c(1,2,3), 
+                   selected = 1)
     ),
+      
     # Show a plot of the generated distribution
     mainPanel(
       plotOutput("court", width = "400px", height = "500px"),
@@ -62,9 +66,38 @@ server <- function(input, output, session) {
     # Updates plot for court visualization
     plot_data <- eventReactive(input$scout_player, {
       req(input$scout_player != "")
+      # Use data decided by radio buttons
+      if(input$data_range > 1){
+        team1 <- input$scout_team
+        team2 <- input$home_team
+        
+        matchup_ids <- data |> distinct(match_id,team,date)
+        team1_matches <- matchup_ids |> filter(team == team1) 
+        team1_match_ids <- team1_matches[[1]]
+        team2_matches <- matchup_ids |> filter(team == team2) 
+        team2_match_ids <- team2_matches[[1]]
+        
+        # Case for scout team matchups vs home team
+        if(input$data_range == 2){
+          
+          combined_match_ids <- as_tibble(c(team1_match_ids,team2_match_ids))
+          shared_match_ids <- combined_match_ids |> count(value) |> filter(n>1) #n = 2 if both teams present
+          shared_match_ids <- shared_match_ids[[1]]
+          
+          data_specified <- data |> filter(match_id %in% shared_match_ids)
+          # Case for scout team's most recent three games
+        }else if(input$data_range == 3){
+          ordered_match_ids <- team1_matches[order(team1_matches$date,team1_matches$match_id),] 
+          last_three_games <- ordered_match_ids |> slice_tail(n=3)
+          last_three_match_ids <- last_three_games[[1]]
+          
+          data_specified <- data |> filter(match_id %in% last_three_match_ids)
+        }
+      }else{data_specified <- data}
       
-      scout_team_plays <- filter(data, team == input$scout_team)
-      hits <- subset(data, select = c(Name, attack_code,AttackPlay, evaluation_code, start_zone, end_zone, skill_subtype)) 
+      
+      scout_team_plays <- filter(data_specified, team == input$scout_team)
+      hits <- subset(data_specified, select = c(Name, attack_code,AttackPlay, evaluation_code, start_zone, end_zone, skill_subtype)) 
       hits<- hits[complete.cases(hits), ]
       # Get complete list of scout player's hits
       scout_player_hits <- filter(hits, Name == input$scout_player)
