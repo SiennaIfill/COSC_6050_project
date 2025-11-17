@@ -20,20 +20,21 @@ ui <- fluidPage(
     titlePanel("Player Patterns"),
     
     sidebarPanel(
-      # Team Select dropdown menu
+      # Home Team Select dropdown menu
       selectInput("home_team","Choose Your Team", choices = c("",available_teams), multiple = F),
       
-      # Team Select dropdown menu
-      selectInput("scout_team","Choose Team to Scout", choices = c("",available_teams), multiple = F),
-      
-      # Player Select populated in server based on team choice
+      # Scout Team Select dropdown menu, only populates after home team selected
+      selectizeInput("scout_team","Choose Team to Scout", choices=NULL),
+      # Scout Player Select populated in server based on team choice
       selectizeInput("scout_player","Choose Player to Scout", choices=NULL),
       
       # Choose range of data available: all games, team matchups, or last three games
       radioButtons("data_range","Choose Range of Data",
                    choiceNames = c("All of Scout Team's Games","Scout Team Vs. Home Team", "Scout Team's Last Three Games"),
                    choiceValues = c(1,2,3), 
-                   selected = 1)
+                   selected = 1),
+      # Action button to generate visualization of players after all specifications have been made
+      actionButton("button", "Generate Scout")
     ),
       
     # Show a plot of the generated distribution
@@ -48,23 +49,31 @@ ui <- fluidPage(
 # Define server logic required for application
 server <- function(input, output, session) {
   
-  # Populate second dropdown based on choice of team to scout
+  # Populate second dropdown after first dropdown has been determined
+  observeEvent(input$home_team, {
+    if(input$home_team == ""){
+      available_teams <- c("")
+    }else{
+      updateSelectizeInput(session, "scout_team", choices=available_teams, selected=NULL)
+    }
+  })
+  
+  # Populate third dropdown based on choice of team to scout
   observeEvent(input$scout_team, {
     if (input$scout_team == ""){
       available_players <- c("")
     }else{
       players <- data |> filter(team == input$scout_team) |> distinct(Name)
+      players$Name <- ifelse(players$Name == "unknown players", NULL, players$Name)
       players <- na.omit(players)
       available_players <- players |> pull(Name)
       available_players <- sort(available_players) 
     }
-    updateSelectizeInput(session, "scout_player",choices=available_players)
+    updateSelectizeInput(session, "scout_player",choices=available_players, selected=NULL)
   })
   
-    
-    
-    # Updates plot for court visualization
-    plot_data <- eventReactive(input$scout_player, {
+    # Updates main panel with court visualization and shot chart
+    plot_data <- eventReactive(input$button, {
       req(input$scout_player != "")
       # Use data decided by radio buttons
       if(input$data_range > 1){
@@ -97,8 +106,8 @@ server <- function(input, output, session) {
       
       
       scout_team_plays <- filter(data_specified, team == input$scout_team)
-      hits <- subset(data_specified, select = c(Name, attack_code,AttackPlay, evaluation_code, start_zone, end_zone, skill_subtype)) 
-      hits<- hits[complete.cases(hits), ]
+      hits <- subset(data_specified, select = c(Name, attack_code,AttackPlay, evaluation_code, start_zone, end_zone, skill_subtype, Phase)) 
+      hits<- hits[complete.cases(hits$attack_code), ]
       # Get complete list of scout player's hits
       scout_player_hits <- filter(hits, Name == input$scout_player)
       # Get overall kill pct
@@ -112,40 +121,74 @@ server <- function(input, output, session) {
       # Rows = shot1, shot2, shot3, shot4
       # Columns = shot type, attempts, kills, errors, kill pct
       if(nrow(top_four) >=4){
-        top1_shot <- paste("A",top_four[[1,2]],top_four[[1,1]],"to zone",top_four[[1,3]])
-        top1_all <- scout_player_hits |> filter(AttackPlay==top_four[[1,1]], skill_subtype==top_four[[1,2]],end_zone==top_four[[1,3]])
-        top1_att <- top1_all |> tally() |> pull(n)
-        top1_kill <- top1_all |> filter(evaluation_code=="#") |> tally() |> pull(n)
-        top1_err <- top1_all |> filter(evaluation_code=="=") |> tally() |> pull(n)
-        top1_pct <- (top1_kill-top1_err)/top1_att
-        
-        top2_shot <- paste("A",top_four[[2,2]],top_four[[2,1]],"to zone",top_four[[2,3]])
-        top2_all <- scout_player_hits |> filter(AttackPlay==top_four[[2,1]], skill_subtype==top_four[[2,2]],end_zone==top_four[[2,3]])
-        top2_att <- top2_all |> tally() |> pull(n)
-        top2_kill <- top2_all |> filter(evaluation_code=="#") |> tally() |> pull(n)
-        top2_err <- top2_all |> filter(evaluation_code=="=") |> tally() |> pull(n)
-        top2_pct <- (top2_kill-top2_err)/top2_att
-        
-        top3_shot <- paste("A",top_four[[3,2]],top_four[[3,1]],"to zone",top_four[[3,3]])
-        top3_all <- scout_player_hits |> filter(AttackPlay==top_four[[3,1]], skill_subtype==top_four[[3,2]],end_zone==top_four[[3,3]])
-        top3_att <- top3_all |> tally() |> pull(n)
-        top3_kill <- top3_all |> filter(evaluation_code=="#") |> tally() |> pull(n)
-        top3_err <- top3_all |> filter(evaluation_code=="=") |> tally() |> pull(n)
-        top3_pct <- (top3_kill-top3_err)/top3_att
-        
-        top4_shot <- paste("A",top_four[[4,2]],top_four[[4,1]],"to zone",top_four[[4,3]])
-        top4_all <- scout_player_hits |> filter(AttackPlay==top_four[[4,1]], skill_subtype==top_four[[4,2]],end_zone==top_four[[4,3]])
-        top4_att <- top4_all |> tally() |> pull(n)
-        top4_kill <- top4_all |> filter(evaluation_code=="#") |> tally() |> pull(n)
-        top4_err <- top4_all |> filter(evaluation_code=="=") |> tally() |> pull(n)
-        top4_pct <- (top4_kill-top4_err)/top4_att
-        
-        Shot <- c(top1_shot,top2_shot,top3_shot,top4_shot,"All attempts")
+        # create a dataframe with info on each of top 4 shots
+        # rows = shot1, shot2, shot3, shot4
+        # columns = attempts, kills, errors, kill pct
+        # special case of setter dumps, no skill subset
+        if(top_four[[1,1]]=="Setter Dump"){
+          top1_shot <- paste("A",top_four[[1,1]],"to zone",top_four[[1,3]])
+          top1_all <- scout_player_hits |> filter(AttackPlay==top_four[[1,1]],end_zone==top_four[[1,3]])
+          top1_att <- top1_all |> tally() |> pull(n)
+          top1_kill <- top1_all |> filter(evaluation_code=="#") |> tally() |> pull(n)
+          top1_err <- top1_all |> filter(evaluation_code=="=") |> tally() |> pull(n)
+          top1_pct <- (top1_kill-top1_err)/top1_att
+          
+          top2_shot <- paste("A",top_four[[2,1]],"to zone",top_four[[2,3]])
+          top2_all <- scout_player_hits |> filter(AttackPlay==top_four[[2,1]],end_zone==top_four[[2,3]])
+          top2_att <- top2_all |> tally() |> pull(n)
+          top2_kill <- top2_all |> filter(evaluation_code=="#") |> tally() |> pull(n)
+          top2_err <- top2_all |> filter(evaluation_code=="=") |> tally() |> pull(n)
+          top2_pct <- (top2_kill-top2_err)/top2_att
+          
+          top3_shot <- paste("A",top_four[[3,1]],"to zone",top_four[[3,3]])
+          top3_all <- scout_player_hits |> filter(AttackPlay==top_four[[3,1]],end_zone==top_four[[3,3]])
+          top3_att <- top3_all |> tally() |> pull(n)
+          top3_kill <- top3_all |> filter(evaluation_code=="#") |> tally() |> pull(n)
+          top3_err <- top3_all |> filter(evaluation_code=="=") |> tally() |> pull(n)
+          top3_pct <- (top3_kill-top3_err)/top3_att
+          
+          top4_shot <- paste("A",top_four[[4,1]],"to zone",top_four[[4,3]])
+          top4_all <- scout_player_hits |> filter(AttackPlay==top_four[[4,1]],end_zone==top_four[[4,3]])
+          top4_att <- top4_all |> tally() |> pull(n)
+          top4_kill <- top4_all |> filter(evaluation_code=="#") |> tally() |> pull(n)
+          top4_err <- top4_all |> filter(evaluation_code=="=") |> tally() |> pull(n)
+          top4_pct <- (top4_kill-top4_err)/top4_att
+        }else{
+          top1_shot <- paste("A",top_four[[1,2]],top_four[[1,1]],"to zone",top_four[[1,3]])
+          top1_all <- scout_player_hits |> filter(AttackPlay==top_four[[1,1]], skill_subtype==top_four[[1,2]],end_zone==top_four[[1,3]])
+          top1_att <- top1_all |> tally() |> pull(n)
+          top1_kill <- top1_all |> filter(evaluation_code=="#") |> tally() |> pull(n)
+          top1_err <- top1_all |> filter(evaluation_code=="=") |> tally() |> pull(n)
+          top1_pct <- (top1_kill-top1_err)/top1_att
+          
+          top2_shot <- paste("A",top_four[[2,2]],top_four[[2,1]],"to zone",top_four[[2,3]])
+          top2_all <- scout_player_hits |> filter(AttackPlay==top_four[[2,1]], skill_subtype==top_four[[2,2]],end_zone==top_four[[2,3]])
+          top2_att <- top2_all |> tally() |> pull(n)
+          top2_kill <- top2_all |> filter(evaluation_code=="#") |> tally() |> pull(n)
+          top2_err <- top2_all |> filter(evaluation_code=="=") |> tally() |> pull(n)
+          top2_pct <- (top2_kill-top2_err)/top2_att
+          
+          top3_shot <- paste("A",top_four[[3,2]],top_four[[3,1]],"to zone",top_four[[3,3]])
+          top3_all <- scout_player_hits |> filter(AttackPlay==top_four[[3,1]], skill_subtype==top_four[[3,2]],end_zone==top_four[[3,3]])
+          top3_att <- top3_all |> tally() |> pull(n)
+          top3_kill <- top3_all |> filter(evaluation_code=="#") |> tally() |> pull(n)
+          top3_err <- top3_all |> filter(evaluation_code=="=") |> tally() |> pull(n)
+          top3_pct <- (top3_kill-top3_err)/top3_att
+          
+          top4_shot <- paste("A",top_four[[4,2]],top_four[[4,1]],"to zone",top_four[[4,3]])
+          top4_all <- scout_player_hits |> filter(AttackPlay==top_four[[4,1]], skill_subtype==top_four[[4,2]],end_zone==top_four[[4,3]])
+          top4_att <- top4_all |> tally() |> pull(n)
+          top4_kill <- top4_all |> filter(evaluation_code=="#") |> tally() |> pull(n)
+          top4_err <- top4_all |> filter(evaluation_code=="=") |> tally() |> pull(n)
+          top4_pct <- (top4_kill-top4_err)/top4_att
+        }
+        Shot <- c(top1_shot,top2_shot,top3_shot,top4_shot,"All Attempts")
         Attempts <- c(top1_att,top2_att,top3_att,top4_att,total_att)
         Kills <- c(top1_kill,top2_kill,top3_kill,top4_kill,kill_num)
         Errors <- c(top1_err,top2_err,top3_err,top4_err,err_num)
         Kill_Percentage <- c(top1_pct,top2_pct,top3_pct,top4_pct,scout_kill_pct)
         Shot_Chart <- data.frame(Shot,Attempts,Kills,Errors,Kill_Percentage)
+        
         
         # Render table with shot chart
         output$text <- renderText("Table Rendered:")
@@ -180,9 +223,19 @@ server <- function(input, output, session) {
         
         plot_4 <- plot_4 |> mutate(
           start_x = case_when(
-            AttackPlay == "Go" ~ 19.5,
-            AttackPlay == "Hut" ~ 16,
-            AttackPlay == "X" ~ 1.5
+            AttackPlay=="Go" ~ 19.5,
+            AttackPlay=="5" ~ 16,
+            AttackPlay=="Red" ~ 1.5,
+            AttackPlay=="9" ~ 5,
+            AttackPlay=="Slide" ~ 1.5,
+            AttackPlay=="Red" ~ 1.5,
+            AttackPlay=="B" ~ 12.5,
+            AttackPlay=="C" ~ 10,
+            AttackPlay=="2" ~ 10,
+            AttackPlay=="Eye" ~ 5,
+            AttackPlay=="Pipe" ~ 10,
+            AttackPlay=="Bic" ~ 10,
+            AttackPlay=="Setter Dump" ~ 5
           ),
           end_x = case_when(
             end_zone %in% c(1, 9, 2) ~ 16,

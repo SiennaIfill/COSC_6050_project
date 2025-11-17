@@ -62,9 +62,25 @@ all_plays<- all_plays|>
       TRUE ~ as.character(phase)
     )
   )
-# Write/export as .csv file for use in app.R
-all_plays$team <- ifelse(all_plays$team == "Providence College (RI)", "Providence College", all_plays$team)
 
+# Additional cleaning
+all_plays$team <- ifelse(all_plays$team == "Providence College (RI)", "Providence College", all_plays$team)
+all_plays$AttackPlay <- ifelse(all_plays$AttackPlay == "Hut", "5", all_plays$AttackPlay)
+all_plays$AttackPlay <- ifelse(all_plays$AttackPlay == "Red", "9", all_plays$AttackPlay)
+all_plays$AttackPlay <- ifelse(all_plays$AttackPlay == "X", "Red", all_plays$AttackPlay)
+all_plays$AttackPlay <- ifelse(all_plays$AttackPlay == "O hits a 2nd step 4", "Red", all_plays$AttackPlay)
+all_plays$AttackPlay <- ifelse(all_plays$AttackPlay == "Quick in front (4)", "C", all_plays$AttackPlay)
+all_plays$AttackPlay <- ifelse(all_plays$AttackPlay == "Quick in Center", "C", all_plays$AttackPlay)
+all_plays$AttackPlay <- ifelse(all_plays$AttackPlay == "Quick ball back(5)", "C", all_plays$AttackPlay)
+all_plays$AttackPlay <- ifelse(all_plays$AttackPlay == "O hits in middle", "2", all_plays$AttackPlay)
+all_plays$AttackPlay <- ifelse(all_plays$AttackPlay == "2", "B", all_plays$AttackPlay)
+all_plays$AttackPlay <- ifelse(all_plays$AttackPlay == "Slide moved from S", "Slide", all_plays$AttackPlay)
+all_plays$AttackPlay <- ifelse(all_plays$AttackPlay == "Slide near S", "Slide", all_plays$AttackPlay)
+all_plays$AttackPlay <- ifelse(all_plays$AttackPlay == "Slide by the opposite", "Slide", all_plays$AttackPlay)
+all_plays$AttackPlay <- ifelse(all_plays$AttackPlay == "D", "Eye", all_plays$AttackPlay)
+all_plays$AttackPlay <- ifelse(all_plays$AttackPlay == "High D", "Eye", all_plays$AttackPlay)
+
+# Write/export as .csv file for use in app.R
 write.csv(all_plays,"~/COSC_6050_project/big_east_plays.csv", row.names = FALSE)
 library(readr)
 big_east_plays <- read_csv("~/COSC_6050_project/big_east_plays.csv")
