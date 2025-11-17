@@ -29,8 +29,13 @@ ui <- fluidPage(
       selectizeInput("scout_player","Choose Player to Scout", choices=NULL),
       
       # Choose range of data available: all games, team matchups, or last three games
-      radioButtons("data_range","Choose Range of Data",
+      radioButtons("data_range","Choose Range of Games",
                    choiceNames = c("All of Scout Team's Games","Scout Team Vs. Home Team", "Scout Team's Last Three Games"),
+                   choiceValues = c(1,2,3), 
+                   selected = 1),
+      # Choose range of data available: all phases, first ball side out, or transition
+      radioButtons("phase_range","Choose Phase of Hits",
+                   choiceNames = c("All Phases","First Ball Side Out", "Transition"),
                    choiceValues = c(1,2,3), 
                    selected = 1),
       # Action button to generate visualization of players after all specifications have been made
@@ -54,7 +59,7 @@ server <- function(input, output, session) {
     if(input$home_team == ""){
       available_teams <- c("")
     }else{
-      updateSelectizeInput(session, "scout_team", choices=available_teams, selected=NULL)
+      updateSelectizeInput(session, "scout_team", choices=c("",available_teams), selected="")
     }
   })
   
@@ -69,13 +74,13 @@ server <- function(input, output, session) {
       available_players <- players |> pull(Name)
       available_players <- sort(available_players) 
     }
-    updateSelectizeInput(session, "scout_player",choices=available_players, selected=NULL)
+    updateSelectizeInput(session, "scout_player",choices=c("",available_players), selected="")
   })
   
     # Updates main panel with court visualization and shot chart
     plot_data <- eventReactive(input$button, {
       req(input$scout_player != "")
-      # Use data decided by radio buttons
+      # Use data decided by game range radio buttons
       if(input$data_range > 1){
         team1 <- input$scout_team
         team2 <- input$home_team
@@ -104,17 +109,25 @@ server <- function(input, output, session) {
         }
       }else{data_specified <- data}
       
-      
       scout_team_plays <- filter(data_specified, team == input$scout_team)
       hits <- subset(data_specified, select = c(Name, attack_code,AttackPlay, evaluation_code, start_zone, end_zone, skill_subtype, Phase)) 
       hits<- hits[complete.cases(hits$attack_code), ]
       # Get complete list of scout player's hits
       scout_player_hits <- filter(hits, Name == input$scout_player)
+      
       # Get overall kill pct
       kill_num <- scout_player_hits |> filter(evaluation_code=="#") |> tally() |> pull(n)
       total_att <- scout_player_hits |> tally() |> pull(n)
       err_num <- scout_player_hits |> filter(evaluation_code=='=') |> tally() |> pull(n)
       scout_kill_pct <- (kill_num-err_num)/total_att 
+      
+      # Use data specified by phase range radio buttons
+      if(input$phase_range ==2){
+        scout_player_hits <- filter(scout_player_hits, Phase =="FBSO")
+      }else if(input$phase_range == 3){
+        scout_player_hits <- filter(scout_player_hits, Phase =="Trans")
+      }
+      
       # Get player's top 4 shots
       top_four <- scout_player_hits |> dplyr::count(AttackPlay, skill_subtype, end_zone, sort = TRUE) |> slice(1:4)
       # Create a dataframe with info on each of top 4 shots
@@ -191,7 +204,7 @@ server <- function(input, output, session) {
         
         
         # Render table with shot chart
-        output$text <- renderText("Table Rendered:")
+        output$text <- renderText("Player's Shot Chart:")
         output$table <- renderTable(Shot_Chart)
         update
       }else{
