@@ -4,6 +4,10 @@ library(tidyverse)
 library(shiny)
 library(readr)
 library(dplyr)
+library(base64enc)
+
+# Load logo image
+uri <- dataURI(file = "~/COSC_6050_project/big_east_vb_logo.png", mime = "image/png")
 # Load necessary data from .csv file, extract teams for first dropdown
 data <- read_csv("~/COSC_6050_project/big_east_plays.csv")
 teams <- data |> distinct(team)
@@ -15,10 +19,48 @@ available_teams <- sort(available_teams)
 
 # Define UI for application
 ui <- fluidPage(
+    # Color modifications
+    tags$style(HTML("
+    /* top-right fixed logo */
+      .top-right-logo {
+        position: fixed;
+        top: 12px;
+        right: 12px;
+        width: 120px;
+        z-index: 9999;
+        pointer-events: none; /* lets clicks pass through if you want that */
+      }
+      
+    body, .well, .main-panel, .shiny-text-output, label, button, input, select, textarea {
+      font-family: 'Gill Sans MT', 'Gill Sans', 'GillSans', sans-serif;
+      font-weight: 400;
+    }
 
+    /* existing styles */
+    body {
+      background-color: #ffffff !important;
+    }
+    .well {
+      background-color: #e6f7ff !important;
+      color: #003366;
+      border: 1px solid #1A427D;
+      border-radius: 6px;
+    }
+    .main-panel {
+      background-color: #fffbe6 !important;
+      color: #1f2937;
+      border: 1px solid #1A427D;
+      border-radius: 6px;
+      padding: 16px;
+    }
+  ")),
+    # Add Logo
+    tags$img(src = uri, class = "top-right-logo", alt = "Logo"),
+  
     # Application title
-    titlePanel("Player Patterns"),
+    titlePanel("BIG EAST Hitter Scout"),
     
+    # Sidebar with player and data selection options
     sidebarPanel(
       # Home Team Select dropdown menu
       selectInput("home_team","Choose Your Team", choices = c("",available_teams), multiple = F),
@@ -44,7 +86,7 @@ ui <- fluidPage(
       
     # Show a plot of the generated distribution
     mainPanel(
-      plotOutput("court", width = "400px", height = "500px"),
+      plotOutput("court", width = "360px", height = "450px"),
       textOutput("text"),
       tableOutput("table")
     )
